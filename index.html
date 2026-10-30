@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#14201d">
+<meta name="apple-mobile-web-app-title" content="Drink-Zähler">
+<title>Drink-Zähler</title>
+<style>
+:root{--bg:#eef1ef;--panel:#fff;--text:#14201d;--mut:#66736f;--line:#d5dcd9;--ink:#14201d;--on:#fff;
+--c0:#c8322e;--c1:#e0701c;--c2:#2f8f5b;--c3:#1f78b4;--c4:#7b4fa3;--c5:#b8860b;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101715;--panel:#1b2623;--text:#eef3f1;--mut:#93a39e;--line:#2c3935;--ink:#eef3f1;--on:#101715;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#101715;--panel:#1b2623;--text:#eef3f1;--mut:#93a39e;--line:#2c3935;--ink:#eef3f1;--on:#101715;color-scheme:dark}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font-family:ui-rounded,"SF Pro Rounded","Avenir Next",system-ui,sans-serif;display:flex;flex-direction:column;overflow:hidden;user-select:none;-webkit-user-select:none}
+nav{display:flex;gap:6px;padding:10px 12px 8px;flex:none}
+nav button{flex:1;padding:12px 6px;border:0;border-radius:12px;background:transparent;color:var(--mut);font:600 17px inherit;font-family:inherit}
+nav button.on{background:var(--ink);color:var(--on)}
+main{flex:1;min-height:0;display:flex;flex-direction:column}
+.view{display:none;flex:1;min-height:0;flex-direction:column}
+.view.on{display:flex}
+#grid{flex:1;min-height:0;display:grid;gap:10px;padding:4px 12px 10px}
+.tile{position:relative;border:0;border-radius:20px;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:8px;font-family:inherit;min-width:0;min-height:0;touch-action:manipulation}
+.tile:active{transform:scale(.97)}
+.tile .n{font-weight:700;line-height:1.1;text-align:center;overflow-wrap:anywhere}
+.tile .p{opacity:.85;font-weight:500}
+.tile .c{font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.tile .m{position:absolute;top:8px;right:8px;width:44px;height:44px;border-radius:50%;border:0;background:rgba(0,0,0,.28);color:#fff;font:700 26px/1 inherit;font-family:inherit}
+.tile .m[hidden]{display:none}
+#bar{flex:none;display:flex;align-items:center;gap:10px;padding:10px 12px 12px;border-top:1px solid var(--line);background:var(--panel)}
+#sum{flex:1;font-size:15px;color:var(--mut);line-height:1.25}
+#sum b{display:block;font-size:26px;color:var(--text);font-variant-numeric:tabular-nums}
+.btn{border:0;border-radius:14px;padding:15px 20px;font:700 18px inherit;font-family:inherit;background:var(--ink);color:var(--on)}
+.btn.sec{background:transparent;color:var(--text);border:1.5px solid var(--line)}
+.btn[disabled]{opacity:.35}
+.btn.danger{background:var(--c0);color:#fff}
+.scroll{flex:1;min-height:0;overflow:auto;padding:4px 12px 16px;-webkit-overflow-scrolling:touch}
+.row{display:flex;gap:8px;margin-bottom:8px;align-items:center}
+.row input{font:600 17px inherit;font-family:inherit;padding:13px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--panel);color:var(--text);min-width:0;user-select:text;-webkit-user-select:text}
+.row .nm{flex:1}.row .pr{width:96px;text-align:right}
+.row .x{width:46px;height:46px;border-radius:12px;border:0;background:transparent;color:var(--c0);font-size:24px;flex:none}
+.hint{color:var(--mut);font-size:14px;margin:4px 2px 12px;line-height:1.4}
+table{width:100%;border-collapse:collapse;background:var(--panel);border-radius:14px;overflow:hidden}
+th,td{padding:14px 12px;text-align:left;font-size:17px;border-bottom:1px solid var(--line)}
+th{font-size:14px;color:var(--mut);font-weight:600}
+td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
+tfoot td{font-weight:800;border-bottom:0}
+td.big{font-size:24px;font-weight:800}
+.acts{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.empty{color:var(--mut);text-align:center;padding:40px 10px}
+</style>
+</head>
+<body>
+<nav>
+ <button data-v="count" class="on">Zählen</button>
+ <button data-v="sum">Auswertung</button>
+ <button data-v="items">Artikel</button>
+</nav>
+<main>
+ <section class="view on" id="v-count">
+  <div id="grid"></div>
+  <div id="bar">
+   <div id="sum"></div>
+   <button class="btn sec" id="clr">Leeren</button>
+   <button class="btn" id="book">Buchen</button>
+  </div>
+ </section>
+ <section class="view" id="v-sum"><div class="scroll" id="sumbox"></div></section>
+ <section class="view" id="v-items"><div class="scroll">
+  <p class="hint">Bis zu 20 Artikel. Der Preis ist optional – sobald mindestens ein Preis eingetragen ist, rechnet die App die Summe mit.</p>
+  <div id="list"></div>
+  <div class="acts"><button class="btn" id="add">Artikel hinzufügen</button></div>
+ </div></section>
+</main>
+<script>
+(function(){
+var KEY="drinkzaehler-v1",MAX=20;
+var S={items:[{id:1,name:"Mojito",price:""},{id:2,name:"Margarita",price:""},{id:3,name:"Whiskey Sour",price:""}],order:{},totals:{},last:null,nid:4};
+try{var raw=localStorage.getItem(KEY);if(raw){var p=JSON.parse(raw);if(p&&p.items)S=p}}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+var $=function(i){return document.getElementById(i)};
+function pr(it){var v=parseFloat(String(it.price).replace(",","."));return isFinite(v)&&v>=0&&String(it.price).trim()!==""?v:null}
+function eur(v){return v.toLocaleString("de-DE",{style:"currency",currency:"EUR"})}
+function hasPrices(){return S.items.some(function(i){return pr(i)!==null})}
+function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e}
+
+var view="count";
+document.querySelectorAll("nav button").forEach(function(b){b.onclick=function(){view=b.dataset.v;document.querySelectorAll("nav button").forEach(function(x){x.classList.toggle("on",x===b)});["count","sum","items"].forEach(function(v){$("v-"+v).classList.toggle("on",v===view)});render()}});
+
+function layout(){
+ var g=$("grid"),n=S.items.length;if(!n)return;
+ var W=g.clientWidth-24,H=g.clientHeight-14,best=1,bs=0;
+ for(var c=1;c<=n;c++){var r=Math.ceil(n/c),s=Math.min((W-10*(c-1))/c,(H-10*(r-1))/r);if(s>bs+0.5){bs=s;best=c}}
+ var rows=Math.ceil(n/best);
+ g.style.gridTemplateColumns="repeat("+best+",1fr)";
+ g.style.gridTemplateRows="repeat("+rows+",1fr)";
+ var cw=W/best,ch=H/rows,m=Math.min(cw,ch*1.3),t=g.children;
+ for(var i=0;i<t.length;i++){
+  t[i].querySelector(".n").style.fontSize=Math.max(15,Math.min(34,m*0.15))+"px";
+  t[i].querySelector(".c").style.fontSize=Math.max(28,Math.min(110,Math.min(cw,ch)*0.34))+"px";
+  var p=t[i].querySelector(".p");if(p)p.style.fontSize=Math.max(13,Math.min(22,m*0.08))+"px";
+ }
+}
+function orderSum(){var s=0,q=0;S.items.forEach(function(it){var c=S.order[it.id]||0;q+=c;var v=pr(it);if(v!==null)s+=c*v});return{s:s,q:q}}
+function renderCount(){
+ var g=$("grid");g.textContent="";
+ if(!S.items.length){g.style.display="block";g.appendChild(el("div","empty","Noch keine Artikel. Lege sie im Tab „Artikel“ an."))}
+ else g.style.display="grid";
+ S.items.forEach(function(it,i){
+  var c=S.order[it.id]||0,b=el("button","tile");
+  b.style.background="var(--c"+(i%6)+")";
+  b.appendChild(el("div","n",it.name||"Artikel"));
+  b.appendChild(el("div","c",String(c)));
+  var v=pr(it);if(v!==null)b.appendChild(el("div","p",eur(v)));
+  var m=el("button","m","−");m.hidden=!c;m.setAttribute("aria-label","Eins weniger");
+  m.onclick=function(e){e.stopPropagation();S.order[it.id]=Math.max(0,c-1);save();render()};
+  b.appendChild(m);
+  b.onclick=function(){S.order[it.id]=c+1;if(navigator.vibrate)try{navigator.vibrate(8)}catch(e){}save();render()};
+  g.appendChild(b);
+ });
+ var o=orderSum(),box=$("sum");box.textContent="";
+ box.appendChild(document.createTextNode(o.q+(o.q===1?" Drink":" Drinks")));
+ if(hasPrices())box.appendChild(el("b","",eur(o.s)));
+ $("book").disabled=!o.q;$("clr").disabled=!o.q;
+ $("book").textContent=S.last&&!o.q?"Rückgängig":"Buchen";
+ $("book").disabled=!o.q&&!S.last;
+ layout();
+}
+$("clr").onclick=function(){S.order={};save();render()};
+$("book").onclick=function(){
+ var o=orderSum();
+ if(!o.q){ if(S.last){Object.keys(S.last).forEach(function(k){S.totals[k]=Math.max(0,(S.totals[k]||0)-S.last[k])});S.last=null;save();render()} return}
+ var snap={};Object.keys(S.order).forEach(function(k){if(S.order[k]>0){snap[k]=S.order[k];S.totals[k]=(S.totals[k]||0)+S.order[k]}});
+ S.last=snap;S.order={};save();render();
+};
+
+var confirmReset=false;
+function renderSum(){
+ var b=$("sumbox");b.textContent="";
+ var rows=S.items.filter(function(it){return S.totals[it.id]>0}),pp=hasPrices();
+ if(!rows.length){b.appendChild(el("div","empty","Noch nichts gebucht. Zähle Drinks im Tab „Zählen“ und tippe auf „Buchen“."));return}
+ var t=el("table"),th=el("thead"),hr=el("tr");
+ ["Drink","Anzahl"].concat(pp?["Umsatz"]:[]).forEach(function(h,i){hr.appendChild(el("th",i?"r":"",h))});
+ th.appendChild(hr);t.appendChild(th);
+ var tb=el("tbody"),tq=0,ts=0;
+ rows.forEach(function(it){
+  var c=S.totals[it.id],v=pr(it),r=el("tr");tq+=c;
+  r.appendChild(el("td","",it.name||"Artikel"));r.appendChild(el("td","r big",String(c)));
+  if(pp){var x=v!==null?c*v:null;if(x!==null)ts+=x;r.appendChild(el("td","r",x!==null?eur(x):"–"))}
+  tb.appendChild(r)});
+ t.appendChild(tb);
+ var tf=el("tfoot"),fr=el("tr");fr.appendChild(el("td","","Gesamt"));fr.appendChild(el("td","r",String(tq)));
+ if(pp)fr.appendChild(el("td","r",eur(ts)));tf.appendChild(fr);t.appendChild(tf);b.appendChild(t);
+ var a=el("div","acts"),cp=el("button","btn sec","Als Text kopieren");
+ cp.onclick=function(){
+  var txt=rows.map(function(it){return S.totals[it.id]+" × "+it.name}).join("\n")+"\nGesamt: "+tq+(pp?" · "+eur(ts):"");
+  try{navigator.clipboard.writeText(txt).then(function(){cp.textContent="Kopiert"},function(){cp.textContent="Kopieren nicht möglich"})}catch(e){cp.textContent="Kopieren nicht möglich"}};
+ var rs=el("button","btn "+(confirmReset?"danger":"sec"),confirmReset?"Wirklich alles löschen":"Event zurücksetzen");
+ rs.onclick=function(){if(!confirmReset){confirmReset=true;renderSum();setTimeout(function(){confirmReset=false;if(view==="sum")renderSum()},4000);return}
+  confirmReset=false;S.totals={};S.order={};S.last=null;save();render()};
+ a.appendChild(cp);a.appendChild(rs);b.appendChild(a);
+}
+
+function renderItems(){
+ var l=$("list");l.textContent="";
+ S.items.forEach(function(it){
+  var r=el("div","row"),n=el("input","nm"),p=el("input","pr"),x=el("button","x","✕");
+  n.value=it.name;n.placeholder="Name";n.maxLength=30;n.setAttribute("aria-label","Name");
+  p.value=it.price;p.placeholder="Preis";p.inputMode="decimal";p.setAttribute("aria-label","Preis in Euro");
+  x.setAttribute("aria-label","Artikel entfernen");
+  n.oninput=function(){it.name=n.value;save()};
+  p.oninput=function(){it.price=p.value;save()};
+  x.onclick=function(){S.items=S.items.filter(function(q){return q!==it});delete S.order[it.id];save();renderItems();updAdd()};
+  r.appendChild(n);r.appendChild(p);r.appendChild(x);l.appendChild(r)});
+ updAdd();
+}
+function updAdd(){var a=$("add");a.disabled=S.items.length>=MAX;a.textContent=S.items.length>=MAX?"Maximum erreicht (20)":"Artikel hinzufügen ("+S.items.length+"/"+MAX+")"}
+$("add").onclick=function(){if(S.items.length>=MAX)return;S.items.push({id:S.nid++,name:"",price:""});save();renderItems();var i=document.querySelectorAll("#list .nm");if(i.length)i[i.length-1].focus()};
+
+function render(){if(view==="count")renderCount();else if(view==="sum")renderSum();else renderItems()}
+window.addEventListener("resize",function(){if(view==="count")layout()});
+render();
+if("serviceWorker" in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}
+})();
+</script>
+</body>
+</html>
